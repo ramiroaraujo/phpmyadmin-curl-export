@@ -24,6 +24,7 @@ http_username=
 http_password=
 use_http_auth=
 save_to=
+no_stdout=1
 phpmyadmin_server=
 compression='none'
 add_drop_statement=
@@ -78,6 +79,10 @@ function parse_arguments()
             save_to="${i#*=}"
             shift # past argument with no value
             ;;
+        --stdout)
+            no_stdout=
+            shift # past argument with no value
+            ;;
         --help)
             phpmyadmin_help
             exit 0
@@ -96,13 +101,17 @@ function parse_arguments()
             ;;
         esac
     done
-    
+
     if [ ${#http_username} -gt 0 -a ${#http_password} -gt 0 ]; then
         use_http_auth="--basic -u $http_username:$http_password"
     fi
-    
+
     if [ -z $save_to ]; then
         save_to=$(date +"%F-$phpmyadmin_dbname.$save_to_extension")
+    fi
+
+    if [ -z ]; then
+        stdout=1
     fi
 }
 
@@ -111,7 +120,7 @@ function phpmyadmin_help()
     cat <<EOF
 Arguments: $0 [--help] [--auth-type=<cookie|basic>] [--http-basic-user=<apache_http_user>] [--http-basic-password=<apache_http_password>] [--phpmyadmin-user=<phpmyadmin_user>] [--phpmyadmin-password=<phpmyadmin_password>] [--phpmyadmin-server=<phpmyadmin_server>] [--dbname=<database>] [--host=<phpmyadmin_host>] [--save-to=<%F-\$dbname.sql>] [--compression] [--add-drop]
        --help: Print help
-       --auth-type=<cookie|basic>: Method of authentication to phpMyAdmin 
+       --auth-type=<cookie|basic>: Method of authentication to phpMyAdmin
        --http-basic-user=<apache_http_user>: Username for HTTP basic authentication
        --http-basic-password=<apache_http_password>: Password for HTTP basic authentication
        --phpmyadmin-user=<phpmyadmin_user>: PhpMyAdmin user (used by cookie auth)
@@ -120,6 +129,7 @@ Arguments: $0 [--help] [--auth-type=<cookie|basic>] [--http-basic-user=<apache_h
        --dbname=<database>: Database to be exported
        --host=<phpmyadmin_host>: PhpMyAdmin host
        --save-to=<%F-\$dbname.sql>: Output filename (support for date format controls eg. %F)
+       --stdout: set flag to send the output to STDOUT
        --compression: Enable gzip compression
        --add-drop: Add DROP TABLE / VIEW / PROCEDURE / FUNCTION / EVENT / TRIGGER statement
 
@@ -328,7 +338,7 @@ curl "$phpmyadmin_host/export.php" \
     -s \
     $culr_cookie_option \
     -H 'Connection: keep-alive' \
-    -o $save_to \
+    ${no_stdout:+-o $save_to} \
     --data $post_params
   
 phpmyadmin_check_response_code "Cant dump database $phpmyadmin_dbname"
